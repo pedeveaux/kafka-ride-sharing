@@ -1,10 +1,10 @@
 BIN_DIR := ./bin
 
 build-producer:
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o $(BIN_DIR)/producer ./producer
+	go build -tags dynamic -o $(BIN_DIR)/producer ./producer
 
 build-consumer:
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o $(BIN_DIR)/consumer ./consumer
+	go build -tags dynamic -o $(BIN_DIR)/consumer ./consumer
 
 build: build-producer build-consumer
 

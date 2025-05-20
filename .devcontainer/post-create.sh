@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Install librdkakfa development headers
+sudo apt-get update && sudo apt-get install -y librdkafka-dev
+
+
 # Install plugins
 git clone https://github.com/zsh-users/zsh-autosuggestions ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions
 git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting
