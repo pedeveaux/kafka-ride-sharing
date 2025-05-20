@@ -1,0 +1,9 @@
+.vscode
+*.exe
+*.test
+config*.json
+__debug_bin
+*.log
+/bin
+/tmp
+.DS_Store
