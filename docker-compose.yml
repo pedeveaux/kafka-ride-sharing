@@ -9,6 +9,16 @@ services:
     volumes:
       - redpanda-data:/var/lib/redpanda
 
+  redpanda-console:
+    image: docker.redpanda.com/redpandadata/console:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - KAFKA_BROKERS=redpanda:9092
+      - SERVER_LISTENPORT=8080
+    depends_on:
+      - redpanda
+
   postgres:
     image: postgres:16
     environment:
@@ -23,13 +33,15 @@ services:
 
   producer:
     build:
-      context: ./producer
+      context: .
+      dockerfile: producer/Dockerfile
     depends_on:
       - redpanda
 
   consumer:
     build:
-      context: ./consumer
+      context: .
+      dockerfile: consumer/Dockerfile
     depends_on:
       - redpanda
       - postgres

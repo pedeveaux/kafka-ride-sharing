@@ -1,5 +1,5 @@
 {
-  "name": "Kafka Go Dev",
+ "name": "Kafka Go Dev",
  "image": "mcr.microsoft.com/devcontainers/go:1.24",
   "workspaceFolder": "/workspace",
   "features": {
@@ -21,7 +21,8 @@
     "vscode": {
       "extensions": [
         "golang.Go",
-        "ms-azuretools.vscode-docker"
+        "ms-azuretools.vscode-docker",
+        "bierner.markdown-mermaid"
       ],
       "settings": {
         "go.useLanguageServer": true
