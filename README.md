@@ -1,10 +1,37 @@
-## Real Time Streaming with Kafka
-This repo uses the model of a ride sharing application to simulate real time streaming and handling of events with [Apache Kafka](https://kafka.apache.org/). As it is an example meant to be run in containers on a local machine, it uses [Redpanda](https://www.redpanda.com/) instead of Kafka to minimize the resources needed.
+# 🛺 Real-Time Ride Sharing Event Streaming
 
-I have modeled the producer and the consumer using Go. One could use Python or Java as well here. I chose Go for it's speed and I just like the language. I use Python every day so I wanted a change of pace and I'm super rusty on my Java. 
+This project simulates a real-time ride-sharing platform using [Apache Kafka](https://kafka.apache.org/) concepts via [Redpanda](https://redpanda.com/). Events like `trip_requested`, `trip_started`, and `trip_completed` are emitted by a Go-based producer, consumed and stored into PostgreSQL by a Go-based consumer.
 
+> ⚡ Built for local dev using Docker and Dev Containers
 
-The project uses a Finite State Machine (FSM) to model the rides as follows:
+---
+
+## 🎯 Features
+
+- Simulated real-time event generation using Go
+- Kafka-compatible messaging with Redpanda
+- Event processing with a Finite State Machine (FSM)
+- Event persistence in PostgreSQL (with JSONB payloads)
+- Health checks and container orchestration with Docker Compose
+- Optional Redpanda Console for topic visibility
+
+---
+
+## 📦 Architecture
+
+```mermaid
+flowchart LR
+    A[Go Producer] -->|Kafka Events| B[Redpanda Broker]
+    B -->|Subscribe| C[Go Consumer]
+    C -->|Insert| D[PostgreSQL DB]
+    B --> E[Redpanda Console]
+```
+
+⸻
+
+🗂️ Ride Event Lifecycle
+
+The simulation uses a FSM to model rides:
 ```mermaid
 stateDiagram-v2
     direction LR
@@ -13,24 +40,112 @@ stateDiagram-v2
     RideAccepted --> TripStarted
     TripStarted --> TripCompleted
     RideAccepted --> TripCancelled
+```
+Each event type (e.g., trip_started) has a specific payload and is written to the ride_events table.
 
+⸻
+
+## 🚀 Getting Started
+
+### Prerequisites
+	•	Docker
+	•	Dev Container support
+	•	Go 1.21+ (if building locally)
+
+### Quickstart
+
+#### Build binaries and services, start the stack
+`make up`
+
+#### View logs
+`make logs`
+
+#### Tear down everything, including volumes
+`make clean`
+
+
+⸻
+
+🧱 Services
+
+|Service|	Port|	Description|
+|---|---|---|
+|Redpanda Broker|	9092	|Kafka-compatible broker|
+|Redpanda Console|	8080|	Topic browser (optional)|
+|PostgreSQL	|5432	|Stores ride event history|
+|Go Producer|	—	|Emits simulated ride events|
+|Go Consumer|	—	|Consumes events, writes to Postgres|
+
+
+⸻
+
+🛢️ PostgreSQL Schema
+
+ride_events table:
+```sql
+CREATE TABLE ride_events (
+    id UUID PRIMARY KEY,
+    trip_id TEXT NOT NULL,
+    event_type VARCHAR(10) NOT NULL,
+    event_state VARCHAR(12) NOT NULL,
+    event_time TIMESTAMP NOT NULL,
+    driver_id TEXT,
+    passenger_id TEXT,
+    payload JSONB,
+    UNIQUE (trip_id, event_type)
+);
 ```
 
-### Build Notes
-Had to use the dynamic tag to force the use of the system `librdkafka`. This is due to the arm64 amd64 issue with the container due to Apple Silicon. 
+⸻
 
-TODO:
- - [ ] Add redpanda console to Docker compose
-    ```yaml
-    redpanda-console:
-      image: docker.redpanda.com/redpandadata/console:latest
-      ports:
-        - "8080:8080"
-      environment:
-        - KAFKA_BROKERS=redpanda:9092
-        - SERVER_LISTENPORT=8080
-      depends_on:
-        - redpanda
-    ```
- - [ ] Test producer
- - [ ] Think about creating a stable of drivers to use
+🛠️ Makefile Commands
+
+|Command| Description|
+|------|----------|
+|make up|	Build & start stack|
+|make build|	Compile Go producer & consumer|
+|make clean	|Remove containers & volumes|
+|make logs|	Tail all container logs|
+
+
+⸻
+
+🧪 Test Ideas
+
+- Emit rides for multiple cities
+- Simulate cancellations and edge cases
+- Observe consumer logs and DB inserts
+- View Kafka traffic via Redpanda Console
+
+⸻
+
+📚 Learning Topics
+- Kafka fundamentals: partitions, consumer groups
+- Exactly-once delivery semantics
+- Stream processing patterns
+- PostgreSQL JSONB storage
+
+⸻
+
+📎 TODO
+- [ ]	Test producer under load
+- [ ]	Simulate multiple drivers and regions
+- [ ]	Add unit tests for FSM
+
+⸻
+
+🧑‍💻 Author
+
+Paul Deveaux
+
+Data Engineer & Go enthusiast
+
+LinkedIn | GitHub
+
+⸻
+
+📝 License
+
+MIT License
+
+---
