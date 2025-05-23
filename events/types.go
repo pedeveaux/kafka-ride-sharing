@@ -75,14 +75,14 @@ const (
 
 // RideEvent represents a single state transition in the ride lifecycle.
 type RideEvent struct {
-	ID        string           `json:"id"`
-	TripID    string           `json:"trip_id"`
-	Type      RideEventType    `json:"type"`
-	Timestamp time.Time        `json:"timestamp"`
-	State     RideState        `json:"state"`
-	DriverID  string           `json:"driver_id,omitempty"`
-	RiderID   string           `json:"rider_id,omitempty"`
-	Payload   RideEventPayload `json:"payload,omitempty"` // use type switches on deserialization
+	ID          string           `json:"id"`
+	TripID      string           `json:"trip_id"`
+	Type        RideEventType    `json:"event_type"`
+	Timestamp   time.Time        `json:"event_time"`
+	State       RideState        `json:"ride_state"`
+	DriverID    string           `json:"driver_id,omitempty"`
+	PassengerID string           `json:"passenger_id,omitempty"`
+	Payload     RideEventPayload `json:"payload,omitempty"` // use type switches on deserialization
 }
 
 // UnmarshalJSON customizes the unmarshalling of RideEvent to handle the Payload field.

@@ -16,7 +16,6 @@ import (
 	"github.com/pedeveaux/kafkarideshare/events"
 )
 
-
 // transitions defines the state transitions for the ride lifecycle.
 // It maps the current state to a map of valid events and their resulting states.
 // The keys of the outer map are the current states, and the values are maps
@@ -72,11 +71,11 @@ func (f *FSM) IsTerminal() bool {
 // It contains the trip ID, driver ID, rider ID, and the FSM for managing the ride's state.
 // The ride also has an updated timestamp to track the last time it was modified.
 type Ride struct {
-	TripID    string
-	DriverID  string
-	RiderID   string
-	FSM       FSM
-	UpdatedAt time.Time
+	TripID      string
+	DriverID    string
+	PassengerID string
+	FSM         FSM
+	UpdatedAt   time.Time
 }
 
 // getNextEvent generates the next event for a given ride.
@@ -99,13 +98,13 @@ func getNextEvent(ride *Ride) (events.RideEvent, error) {
 			return events.RideEvent{}, err
 		}
 		evt := events.RideEvent{
-			ID:        uuid.NewString(),
-			TripID:    ride.TripID,
-			DriverID:  ride.DriverID,
-			RiderID:   ride.RiderID,
-			Type:      events.EventTripCancelled,
-			State:     events.StateCancelled,
-			Timestamp: now,
+			ID:          uuid.NewString(),
+			TripID:      ride.TripID,
+			DriverID:    ride.DriverID,
+			PassengerID: ride.PassengerID,
+			Type:        events.EventTripCancelled,
+			State:       events.StateCancelled,
+			Timestamp:   now,
 			Payload: events.RideCancelledPayload{
 				CancelledBy: "passenger",
 				Reason:      "no_show",
@@ -148,14 +147,14 @@ func getNextEvent(ride *Ride) (events.RideEvent, error) {
 	}
 
 	evt := events.RideEvent{
-		ID:        uuid.NewString(),
-		TripID:    ride.TripID,
-		DriverID:  ride.DriverID,
-		RiderID:   ride.RiderID,
-		Type:      next,
-		State:     ride.FSM.State,
-		Timestamp: now,
-		Payload:   payload,
+		ID:          uuid.NewString(),
+		TripID:      ride.TripID,
+		DriverID:    ride.DriverID,
+		PassengerID: ride.PassengerID,
+		Type:        next,
+		State:       ride.FSM.State,
+		Timestamp:   now,
+		Payload:     payload,
 	}
 
 	ride.UpdatedAt = now
@@ -196,19 +195,19 @@ loop:
 			if len(activeRides) < 100 {
 				tripID := uuid.NewString()
 				ride := &Ride{
-					TripID:    tripID,
-					DriverID:  uuid.NewString(),
-					RiderID:   uuid.NewString(),
-					FSM:       FSM{State: events.StateRequested},
-					UpdatedAt: time.Now(),
+					TripID:      tripID,
+					DriverID:    uuid.NewString(),
+					PassengerID: uuid.NewString(),
+					FSM:         FSM{State: events.StateRequested},
+					UpdatedAt:   time.Now(),
 				}
 				activeRides[tripID] = ride
 				evt := events.RideEvent{
-					TripID:    ride.TripID,
-					DriverID:  ride.DriverID,
-					RiderID:   ride.RiderID,
-					Type:      events.EventRideRequested,
-					Timestamp: ride.UpdatedAt,
+					TripID:      ride.TripID,
+					DriverID:    ride.DriverID,
+					PassengerID: ride.PassengerID,
+					Type:        events.EventRideRequested,
+					Timestamp:   ride.UpdatedAt,
 				}
 				bytes, _ := json.Marshal(evt)
 				producer.Produce(&kafka.Message{

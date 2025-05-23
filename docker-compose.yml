@@ -36,7 +36,12 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "admin", "-d", "rides"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   producer:
     build:
@@ -52,8 +57,10 @@ services:
       context: .
       dockerfile: consumer/Dockerfile
     depends_on:
-      - redpanda
-      - postgres
+      redpanda:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
   
 volumes:
   redpanda-data:

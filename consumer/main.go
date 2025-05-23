@@ -1,11 +1,19 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
+
+func insertRideEvent(db * sql.DB, eventType string, payload []byte) error {
+	query := "INSERT INTO ride_events (event_type, payload) VALUES ($1, $2)"
+	_, err := db.Exec(query, eventType, payload)
+	return err
+}
+
 
 func main() {
 	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
