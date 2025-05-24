@@ -46,6 +46,7 @@ Each event type (e.g., trip_started) has a specific payload and is written to th
 ⸻
 
 ## 🚀 Getting Started
+This repo is designed to be used in VSCode with devcontainers. Simply clone the repo and then in VSCode, open in container. You will then be able to run the make commands, from within the devcontainer, to start/stop/build the other services.
 
 ### Prerequisites
 	•	Docker
