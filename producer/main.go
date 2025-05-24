@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -181,16 +182,30 @@ func main() {
 			}
 		}
 	}()
-
+	// Initialize the ride events topic and active rides map
+	// and start the ticker for generating ride events.
 	topic := "ride-events"
 	activeRides := make(map[string]*Ride)
 	ticker := time.NewTicker(1 * time.Second)
-	sigchan := make(chan os.Signal, 1)
-	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
+
+	// Set up a context for graceful shutdown and signal handling.
+	// This context will be used to cancel the ticker and producer flush on shutdown.
+	// It listens for OS signals like SIGINT and SIGTERM to gracefully shut down the producer.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		sigchan := make(chan os.Signal, 1)
+		signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
+		<-sigchan
+		log.Println("Received shutdown signal.")
+		cancel()
+	}()
 
 loop:
 	for {
 		select {
+		// Generate a new ride request every second if there are fewer than 100 active rides.
 		case <-ticker.C:
 			if len(activeRides) < 100 {
 				tripID := uuid.NewString()
@@ -215,7 +230,7 @@ loop:
 					Value:          bytes,
 				}, nil)
 			}
-
+			// Process each active ride to generate the next event.
 			for tripID, ride := range activeRides {
 				event, err := getNextEvent(ride)
 				if err != nil {
@@ -237,9 +252,9 @@ loop:
 					delete(activeRides, tripID)
 				}
 			}
-
-		case <-sigchan:
-			log.Println("Shutting down...")
+		// Handle OS signals for graceful shutdown.
+		case <-ctx.Done():
+			log.Println("Shutting down via context cancel")
 			break loop
 		}
 	}
