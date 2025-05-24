@@ -1,19 +1,17 @@
-
 services:
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:latest
     command: redpanda start --overprovisioned --smp 1 --memory 512M --reserve-memory 0M --node-id 0 --check=false --kafka-addr 0.0.0.0:9092 --advertise-kafka-addr redpanda:9092
     ports:
       - "9092:9092"
-      - "9644:9644"  # Admin UI
+      - "9644:9644" # Admin UI
     volumes:
       - redpanda-data:/var/lib/redpanda
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9644/v1/status/ready"]
+      test: [ "CMD", "curl", "-f", "http://localhost:9644/v1/status/ready" ]
       interval: 10s
       timeout: 5s
       retries: 5
-
 
   redpanda-console:
     image: docker.redpanda.com/redpandadata/console:latest
@@ -28,17 +26,14 @@ services:
 
   postgres:
     image: postgres:16
-    environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: rides
+    env_file: .env
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "admin", "-d", "rides"]
+      test: [ "CMD", "pg_isready", "-U", "admin", "-d", "rides" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -51,7 +46,6 @@ services:
       redpanda:
         condition: service_healthy
 
-
   consumer:
     build:
       context: .
@@ -61,7 +55,8 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-  
+    env_file: .env
+
 volumes:
   redpanda-data:
   pgdata:

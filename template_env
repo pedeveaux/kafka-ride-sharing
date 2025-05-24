@@ -1,0 +1,4 @@
+POSTGRES_HOST=postgres
+POSTGRES_USER=pg_user
+POSTGRES_PASSWORD=pg_password
+POSTGRES_DB=pg_database

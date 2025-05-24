@@ -53,6 +53,8 @@ Each event type (e.g., trip_started) has a specific payload and is written to th
 	•	Go 1.21+ (if building locally)
 
 ### Quickstart
+#### Create .env file
+- Use the template_env file to create a `.env` file to hold variables for accessing the database. 
 
 #### Build binaries and services, start the stack
 `make up`

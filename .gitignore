@@ -7,3 +7,4 @@ __debug_bin
 /bin
 /tmp
 .DS_Store
+.env
