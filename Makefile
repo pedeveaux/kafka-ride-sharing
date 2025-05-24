@@ -28,3 +28,6 @@ logs:
 
 clean:
 	docker compose down -v
+
+test:
+	go test $$(find . -name '*_test.go' -exec dirname {} \; | sort -u) -v

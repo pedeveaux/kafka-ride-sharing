@@ -109,6 +109,7 @@ CREATE TABLE ride_events (
 |make build|	Compile Go producer & consumer|
 |make clean	|Remove containers & volumes|
 |make logs|	Tail all container logs|
+|make test| Run all Go unit tests |
 
 
 ⸻
