@@ -49,9 +49,9 @@ Each event type (e.g., trip_started) has a specific payload and is written to th
 This repo is designed to be used in VSCode with devcontainers. Simply clone the repo and then in VSCode, open in container. You will then be able to run the make commands, from within the devcontainer, to start/stop/build the other services.
 
 ### Prerequisites
-	•	Docker
-	•	Dev Container support
-	•	Go 1.21+ (if building locally)
+- Docker
+- Dev Container support
+- Go 1.21+ (if building locally)
 
 ### Quickstart
 #### Create .env file
@@ -142,8 +142,6 @@ CREATE TABLE ride_events (
 Paul Deveaux
 
 Data Engineer & Go enthusiast
-
-LinkedIn | GitHub
 
 ⸻
 
