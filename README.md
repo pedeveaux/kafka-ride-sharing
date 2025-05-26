@@ -111,6 +111,7 @@ CREATE TABLE ride_events (
 |make logs|	Tail all container logs|
 |make test| Run all Go unit tests |
 
+- These commands allow you to quickly iterate over changes and tests within the devcontainer.
 
 ⸻
 
@@ -126,6 +127,7 @@ CREATE TABLE ride_events (
 📚 Learning Topics
 - Kafka fundamentals: partitions, consumer groups
 - Exactly-once delivery semantics
+  - This is implemented by using `INSERT...ON CONFLICT` in PostgreSQL. This makes the database layer idempotent.  
 - Stream processing patterns
 - PostgreSQL JSONB storage
 

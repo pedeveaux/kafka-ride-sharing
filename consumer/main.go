@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,13 +11,17 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/joho/godotenv"
 	"github.com/pedeveaux/kafkarideshare/events"
+	"github.com/pedeveaux/kafkarideshare/logger"
 	"github.com/pedeveaux/kafkarideshare/rides_db"
 )
 
 func main() {
+	logger.Init(slog.LevelInfo, "json")
+	slog.Info("Starting ride consumer service...")
+
 	err := godotenv.Load()
 	if err != nil {
-		log.Println("No .env file found. Falling back to system environment variables.")
+		slog.Error("No .env file found. Falling back to system environment variables.", "error", err)
 	}
 
 	connStr := fmt.Sprintf(
@@ -30,7 +34,7 @@ func main() {
 
 	// Initialize the database connection
 	if err := rides_db.Init(connStr); err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		slog.Error("Failed to connect to database", "error", err)
 	}
 	// Create a context for the database operations
 	ctx, cancel := context.WithCancel(context.Background())
@@ -43,7 +47,7 @@ func main() {
 	// Start a goroutine that cancels the context when a signal is received
 	go func() {
 		<-signalChan
-		fmt.Println("Received shutdown signal. Exiting gracefully...")
+		slog.Info("Received shutdown signal. Exiting gracefully...")
 		cancel()
 	}()
 
@@ -54,7 +58,7 @@ func main() {
 		"auto.offset.reset": "earliest",
 	})
 	if err != nil {
-		log.Fatalf("Failed to create consumer: %v", err)
+		logger.Fatal("Failed to create consumer", "error", err)
 	}
 	defer consumer.Close()
 
@@ -63,24 +67,25 @@ func main() {
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println("Context cancelled. Exiting...")
+			slog.Info("Context cancelled. Exiting...")
 			return
 		default:
 			msg, err := consumer.ReadMessage(-1)
 			if err == nil {
 				var event events.RideEvent
 				if err := event.UnmarshalJSON(msg.Value); err != nil {
-					log.Printf("Failed to unmarshal message: %v", err)
-					continue
-				}
-				if err := rides_db.InsertRideEvent(ctx, event); err != nil {
-					log.Printf("Failed to insert event into database: %v", err)
+					slog.Error("Failed to unmarshal message", "event_ID", event.ID, "event type", event.Type, "error", err)
 					continue
 				}
 				// Process the event as needed
-				fmt.Printf("Received: %s\n", string(msg.Value))
+				if err := rides_db.InsertRideEvent(ctx, event); err != nil {
+					slog.Error("Failed to insert event into database", "error", err)
+					continue
+				}
+				// Log the consumed message details
+				slog.Info("Consumed message", "partition", msg.TopicPartition.Partition, "offset", msg.TopicPartition.Offset, "key", string(msg.Key), "trip_id", event.TripID, "type", event.Type)
 			} else {
-				log.Printf("Consumer error: %v\n", err)
+				slog.Error("Consumer error", "error", err)
 			}
 		}
 	}

@@ -4,17 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/brianvoe/gofakeit/v6"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/google/uuid"
 
 	"github.com/pedeveaux/kafkarideshare/events"
+	"github.com/pedeveaux/kafkarideshare/logger"
 )
 
 // transitions defines the state transitions for the ride lifecycle.
@@ -31,6 +33,7 @@ var transitions = map[events.RideState]map[events.RideEventType]events.RideState
 		events.EventTripCancelled: events.StateCancelled,
 	},
 	events.StateInProgress: {
+		events.EventTripCancelled: events.StateCancelled,
 		events.EventTripCompleted: events.StateCompleted,
 	},
 }
@@ -68,6 +71,12 @@ func (f *FSM) IsTerminal() bool {
 	return f.State == events.StateCompleted || f.State == events.StateCancelled
 }
 
+// IsCancelable checks if the current state allows for cancellation.
+// A ride can be cancelled if it is in the Requested or Accepted state.
+func (f *FSM) IsCancelable() bool {
+	return f.State == events.StateRequested || f.State == events.StateAccepted
+}
+
 // Ride represents a ride in the rideshare application.
 // It contains the trip ID, driver ID, rider ID, and the FSM for managing the ride's state.
 // The ride also has an updated timestamp to track the last time it was modified.
@@ -93,7 +102,7 @@ func getNextEvent(ride *Ride) (events.RideEvent, error) {
 	now := time.Now()
 
 	// Simulate cancellation with 10% chance when not terminal
-	if !ride.FSM.IsTerminal() && rand.Float64() < 0.1 {
+	if !ride.FSM.IsTerminal() && rand.Float64() < 0.1 && ride.FSM.IsCancelable() {
 		err := ride.FSM.Apply(events.EventTripCancelled)
 		if err != nil {
 			return events.RideEvent{}, err
@@ -137,6 +146,8 @@ func getNextEvent(ride *Ride) (events.RideEvent, error) {
 	// Map the event type to the corresponding payload type
 	var payload events.RideEventPayload
 	switch next {
+	case events.EventRideRequested:
+		payload = events.RideRequestedPayload{}
 	case events.EventRideAccepted:
 		payload = events.RideAcceptedPayload{}
 	case events.EventTripStarted:
@@ -163,6 +174,8 @@ func getNextEvent(ride *Ride) (events.RideEvent, error) {
 }
 
 func main() {
+	logger.Init(slog.LevelInfo, "json")
+	slog.Info("Starting ride producer")
 
 	producer, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "redpanda:9092"})
 	if err != nil {
@@ -175,9 +188,9 @@ func main() {
 			switch ev := e.(type) {
 			case *kafka.Message:
 				if ev.TopicPartition.Error != nil {
-					log.Printf("Delivery failed: %v\n", ev.TopicPartition)
+					slog.Error("Delivery failed", "key", ev.Key, "topic partition", ev.TopicPartition.Partition, "error", ev.TopicPartition.Error)
 				} else {
-					log.Printf("Delivered to: %v\n", ev.TopicPartition)
+					slog.Info("Delivery successful", "key", ev.Key, "topic partition", ev.TopicPartition.Partition)
 				}
 			}
 		}
@@ -198,7 +211,7 @@ func main() {
 		sigchan := make(chan os.Signal, 1)
 		signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
 		<-sigchan
-		log.Println("Received shutdown signal.")
+		slog.Info("Received shutdown signal.")
 		cancel()
 	}()
 
@@ -218,15 +231,27 @@ loop:
 				}
 				activeRides[tripID] = ride
 				evt := events.RideEvent{
+					ID:          uuid.NewString(),
 					TripID:      ride.TripID,
 					DriverID:    ride.DriverID,
 					PassengerID: ride.PassengerID,
 					Type:        events.EventRideRequested,
+					State:       events.StateRequested,
 					Timestamp:   ride.UpdatedAt,
+					Payload: events.RideRequestedPayload{
+						Passenger:       ride.PassengerID,
+						PickupLocation:  gofakeit.Street(),
+						DropoffLocation: gofakeit.Street(),
+					},
 				}
-				bytes, _ := json.Marshal(evt)
+				bytes, err := json.Marshal(evt)
+				if err != nil {
+					slog.Error("Failed to marshal ride event", "error", err, "tripID", ride.TripID)
+					continue
+				}
 				producer.Produce(&kafka.Message{
 					TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+					Key:            []byte(ride.TripID),
 					Value:          bytes,
 				}, nil)
 			}
@@ -234,17 +259,23 @@ loop:
 			for tripID, ride := range activeRides {
 				event, err := getNextEvent(ride)
 				if err != nil {
-					log.Printf("Ride %s event error: %v", tripID, err)
+					slog.Error("Ride Error", "error", err, "tripID", tripID)
 					delete(activeRides, tripID)
 					continue
 				}
-				if event.Type == "" {
+				if event.Type == "" || event.TripID == "" {
+					slog.Warn("Skipping empty event", "tripID", tripID, "eventType", event.Type)
 					continue
 				}
 
-				bytes, _ := json.Marshal(event)
+				bytes, err := json.Marshal(event)
+				if err != nil {
+					slog.Error("Failed to marshal event", "error", err, "tripID", tripID)
+					continue
+				}
 				producer.Produce(&kafka.Message{
 					TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+					Key:            []byte(ride.TripID),
 					Value:          bytes,
 				}, nil)
 
@@ -254,7 +285,7 @@ loop:
 			}
 		// Handle OS signals for graceful shutdown.
 		case <-ctx.Done():
-			log.Println("Shutting down via context cancel")
+			slog.Info("Shutting down via context cancel")
 			break loop
 		}
 	}
