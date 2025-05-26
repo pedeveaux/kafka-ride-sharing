@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -88,6 +89,17 @@ type Ride struct {
 	UpdatedAt   time.Time
 }
 
+// generateFare generates a fare based on the distance of the ride.
+// It simulates a fare calculation by applying a base fare and a per-kilometer rate.
+// The fare is rounded to two decimal places to represent a monetary value.
+func generateFare(distance float64) float64 {
+	// Generate a random fare based on distance
+	// Assuming a base fare of $2.50 and $1.00 per km
+	baseFare := 2.50
+	perKmRate := 1.00
+	return math.Round((baseFare+(perKmRate*distance))*100) / 100 // Round to two decimal places
+}
+
 // getNextEvent generates the next event for a given ride.
 // It simulates the ride lifecycle by applying the next event based on the current state.
 // The method also handles the case where a ride is cancelled with a 10% chance.
@@ -147,13 +159,25 @@ func getNextEvent(ride *Ride) (events.RideEvent, error) {
 	var payload events.RideEventPayload
 	switch next {
 	case events.EventRideRequested:
-		payload = events.RideRequestedPayload{}
+		payload = events.RideRequestedPayload{
+			Passenger:       ride.PassengerID,
+			PickupLocation:  gofakeit.Street(),
+			DropoffLocation: gofakeit.Street(),
+		}
 	case events.EventRideAccepted:
-		payload = events.RideAcceptedPayload{}
+		payload = events.RideAcceptedPayload{
+			DriverID: ride.DriverID,
+		}
 	case events.EventTripStarted:
 		payload = events.RideStartedPayload{}
 	case events.EventTripCompleted:
-		payload = events.RideCompletedPayload{}
+		distance := math.Round(gofakeit.Float64Range(2.0, 25.0)*100) / 100
+		fare := generateFare(distance)
+		payload = events.RideCompletedPayload{
+			EndTime:    now,
+			DistanceKM: distance,
+			FareUSD:    fare,
+		}
 	default:
 		payload = nil
 	}
